@@ -27,20 +27,20 @@ export interface TickTickTask {
     timeZone: string // "Europe/Amsterdam"
 }
 
-enum Status {
+export enum Status {
     TODO = 0,
     UNKNOWN = 1,
     COMPLETED = 2
 }
 
-enum Priority {
+export enum Priority {
     NONE = 0,
     LOW = 1,
     MEDIUM = 3,
     HIGH = 5
 }
 
-enum Kind {
+export enum Kind {
     TEXT = 'TEXT',
     CHECKLIST = 'CHECKLIST'
 }

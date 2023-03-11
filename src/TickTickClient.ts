@@ -1,8 +1,12 @@
 import axios, { AxiosError } from 'axios';
+import ObjectID from 'bson-objectid';
+import { AddTask } from './models/AddTask';
 import { TickTickProfile } from './models/TickTickProfile';
 import { TickTickProject } from './models/TickTickProject';
-import { TickTickTask } from './models/TickTickTask';
+import { Status, TickTickTask } from './models/TickTickTask';
 import { TickTickLogin } from './models/TickTickUser';
+import { TickTickModelHelpers } from './TickTickModelHelpers';
+
 axios.defaults.baseURL = 'https://ticktick.com/api/v2/';
 
 export class TickTickClient {
@@ -53,13 +57,43 @@ export class TickTickClient {
     return <TickTickProject[]>result.data;
   }
 
-  public async createTask(task: TickTickTask): Promise<any> {
-    console.log(task);
+  public async createTask(task: AddTask): Promise<any> {
+    return this.createTasks([task]);
+  }
+
+  public async createTasks(tasks: AddTask[]): Promise<any> {
     const url = "batch/task";
+    const modifiedTasks: TickTickTask[] = [];
+    tasks.forEach(task => {
+      const modifiedTask: TickTickTask = {
+        id: task.id ? task.id : ObjectID(),
+        title: task.title,
+        assignee: task.assignee ? task.assignee : null,
+        content: task.content ? task.content : '',
+        createdTime: task.createdTime ? task.createdTime : TickTickModelHelpers.ConvertDateToTickTickDateTime(new Date()),
+        dueDate: task.dueDate ? task.dueDate : null,
+        exDate: task.exDate ? task.exDate : [],
+        isFloating: task.isFloating ? task.isFloating : false,
+        isAllDay: task.isAllDay ? task.isAllDay : undefined,
+        items: task.items ? task.items : [],
+        kind: task.kind ? task.kind : null,
+        modifiedTime: task.modifiedTime ? task.modifiedTime : TickTickModelHelpers.ConvertDateToTickTickDateTime(new Date()),
+        priority: task.priority ? task.priority : 0,
+        progress: task.progress ? task.progress : 0,
+        projectId: task.projectId,
+        reminders: task.reminders ? task.reminders : [],
+        repeatFlag: task.repeatFlag ? task.repeatFlag : undefined, // "RRULE:FREQ=DAILY;INTERVAL=1"
+        repeatFrom: task.repeatFrom ? task.repeatFrom : undefined, // "2"
+        sortOrder: task.sortOrder ? task.sortOrder : -205058918580224,
+        startDate: task.startDate ? task.startDate : null,
+        status: task.status ? task.status : Status.TODO, // 0 is TODO
+        tags: task.tags ? task.tags : [],
+        timeZone: task.timeZone ? task.timeZone : 'Europe/Amsterdam'
+      };
+      modifiedTasks.push(modifiedTask);
+    });
     const body = {
-      add: [
-        task
-      ],
+      add: modifiedTasks,
       addAttachments: [],
       delete: [],
       deleteAttachments: [],

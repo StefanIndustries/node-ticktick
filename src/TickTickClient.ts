@@ -32,9 +32,9 @@ export class TickTickClient {
       username: this.username,
       password: this.password,
     };
-
+    const xDevice = JSON.stringify({device: "node-ticktick"});
     const result = await axios.post(url, options, {
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Device": xDevice },
     });
 
     const cookie = result.headers["set-cookie"]?.join("; ") + ";";
@@ -55,6 +55,13 @@ export class TickTickClient {
     const result = await axios.get(url);
 
     return <TickTickProject[]>result.data;
+  }
+
+  public async getTasks(): Promise<TickTickTask[]> {
+    const url = "project/all/completedInAll/?from=2023-04-12 00:00:00&to=2023-04-12 22:00:00&limit=50";
+    const result = await axios.get(url);
+
+    return <TickTickTask[]>result.data;
   }
 
   public async createTask(task: AddTask): Promise<any> {

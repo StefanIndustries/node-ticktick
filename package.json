@@ -1,6 +1,6 @@
 {
   "name": "node-ticktick",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Stefan Simon",
   "main": "lib/TickTickClient.js",
   "types": "lib/TickTickClient.d.ts",

@@ -1,3 +1,6 @@
+# Local files
+.env
+
 # Editors
 .idea
 .idea/

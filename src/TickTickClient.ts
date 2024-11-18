@@ -32,9 +32,19 @@ export class TickTickClient {
       username: this.username,
       password: this.password,
     };
-    const xDevice = JSON.stringify({device: "node-ticktick"});
+    const xDevice = JSON.stringify({"platform":"web","os":"Windows 10","device":"Firefox 122.0","name":"","version":5070,"id":"6235fe7bac5d867b31382f52","channel":"website","campaign":"","websocket":""});
     const result = await axios.post(url, options, {
-      headers: { "Content-Type": "application/json", "X-Device": xDevice },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Device": xDevice,
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": "https://ticktick.com",
+        "DNT": 1,
+        "Origin": "https://ticktick.com",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "en-US,en;q=0.5",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+      },
     });
 
     const cookie = result.headers["set-cookie"]?.join("; ") + ";";

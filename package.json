@@ -1,6 +1,6 @@
 {
   "name": "node-ticktick",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "Stefan Simon",
   "main": "lib/TickTickClient.js",
   "types": "lib/TickTickClient.d.ts",
@@ -20,17 +20,17 @@
   },
   "homepage": "https://github.com/StefanIndustries/node-ticktick",
   "dependencies": {
-    "axios": "^1.7.7",
+    "axios": "^1.9.0",
     "bson-objectid": "^2.0.4"
   },
   "files": [
     "lib/**/*"
   ],
   "devDependencies": {
-    "tsx": "^4.19.2",
-    "@types/node": "^22.9.0",
-    "eslint": "^9.15.0",
-    "typescript-eslint": "^8.14.0",
-    "typescript": "^5.6.3"
+    "tsx": "^4.19.4",
+    "@types/node": "^22.15.30",
+    "eslint": "^9.28.0",
+    "typescript-eslint": "^8.33.1",
+    "typescript": "^5.8.3"
   }
 }

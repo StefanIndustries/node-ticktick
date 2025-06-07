@@ -11,7 +11,30 @@ axios.defaults.baseURL = 'https://ticktick.com/api/v2/';
 
 export class TickTickClient {
 
+  private readonly xDevice = JSON.stringify({
+    "platform": "web",
+    "os": "Windows 10",
+    "device": "Firefox 122.0",
+    "name": "",
+    "version": 5070,
+    "id": "6235fe7bac5d867b31382f52",
+    "channel": "website",
+    "campaign": "",
+    "websocket": ""
+  });
+  private csrfHeader: string | undefined;
+
   constructor(private username: string, private password: string) {
+    axios.interceptors.request.use((config) => {
+      if (this.xDevice) {
+        config.headers['X-Device'] = this.xDevice;
+      }
+      if (this.csrfHeader) {
+        config.headers['X-Csrftoken'] = this.csrfHeader;
+      }
+      return config;
+    });
+
     axios.interceptors.response.use(undefined, async (error: AxiosError) => {
       if(error.response?.status !== 401) {
         return Promise.reject(error);
@@ -32,11 +55,9 @@ export class TickTickClient {
       username: this.username,
       password: this.password,
     };
-    const xDevice = JSON.stringify({"platform":"web","os":"Windows 10","device":"Firefox 122.0","name":"","version":5070,"id":"6235fe7bac5d867b31382f52","channel":"website","campaign":"","websocket":""});
     const result = await axios.post(url, options, {
       headers: {
         "Content-Type": "application/json",
-        "X-Device": xDevice,
         "X-Requested-With": "XMLHttpRequest",
         "Referer": "https://ticktick.com",
         "DNT": 1,
@@ -48,6 +69,10 @@ export class TickTickClient {
     });
 
     const cookie = result.headers["set-cookie"]?.join("; ") + ";";
+    const csrfCookie = result.headers["set-cookie"]?.find(c => c.startsWith('_csrf_token='));
+    if (csrfCookie) {
+      this.csrfHeader = csrfCookie.split(';')[0].split('=')[1];
+    }
     axios.defaults.headers.common['Cookie'] = cookie;
 
     return <TickTickLogin>result.data;
@@ -80,35 +105,32 @@ export class TickTickClient {
 
   public async createTasks(tasks: AddTask[]): Promise<any> {
     const url = "batch/task";
-    const modifiedTasks: TickTickTask[] = [];
-    tasks.forEach(task => {
-      const modifiedTask: TickTickTask = {
-        id: task.id ? task.id : ObjectID(),
-        title: task.title,
-        assignee: task.assignee ? task.assignee : null,
-        content: task.content ? task.content : '',
-        createdTime: task.createdTime ? task.createdTime : TickTickModelHelpers.ConvertDateToTickTickDateTime(new Date()),
-        dueDate: task.dueDate ? task.dueDate : null,
-        exDate: task.exDate ? task.exDate : [],
-        isFloating: task.isFloating ? task.isFloating : false,
-        isAllDay: task.isAllDay ? task.isAllDay : undefined,
-        items: task.items ? task.items : [],
-        kind: task.kind ? task.kind : null,
-        modifiedTime: task.modifiedTime ? task.modifiedTime : TickTickModelHelpers.ConvertDateToTickTickDateTime(new Date()),
-        priority: task.priority ? task.priority : 0,
-        progress: task.progress ? task.progress : 0,
-        projectId: task.projectId,
-        reminders: task.reminders ? task.reminders : [],
-        repeatFlag: task.repeatFlag ? task.repeatFlag : undefined, // "RRULE:FREQ=DAILY;INTERVAL=1"
-        repeatFrom: task.repeatFrom ? task.repeatFrom : undefined, // "2"
-        sortOrder: task.sortOrder ? task.sortOrder : -205058918580224,
-        startDate: task.startDate ? task.startDate : null,
-        status: task.status ? task.status : Status.TODO, // 0 is TODO
-        tags: task.tags ? task.tags : [],
-        timeZone: task.timeZone ? task.timeZone : 'Europe/Amsterdam'
-      };
-      modifiedTasks.push(modifiedTask);
-    });
+    const modifiedTasks: TickTickTask[] = tasks.map(task => ({
+          id: task.id ?? ObjectID(),
+          title: task.title,
+          assignee: task.assignee ?? null,
+          content: task.content ?? "",
+          createdTime: task.createdTime ?? TickTickModelHelpers.ConvertDateToTickTickDateTime(new Date()),
+          dueDate: task.dueDate ?? null,
+          exDate: task.exDate ?? [],
+          isFloating: task.isFloating ?? false,
+          isAllDay: task.isAllDay !== undefined ? task.isAllDay : true, // Fix for boolean
+          items: task.items ?? [],
+          kind: task.kind ?? null,
+          modifiedTime: task.modifiedTime ?? TickTickModelHelpers.ConvertDateToTickTickDateTime(new Date()),
+          priority: task.priority !== undefined ? task.priority : 0, // Fix for numbers
+          progress: task.progress ?? 0,
+          projectId: task.projectId,
+          reminders: task.reminders ?? [],
+          repeatFlag: task.repeatFlag ?? undefined,
+          repeatFrom: task.repeatFrom ?? undefined,
+          sortOrder: task.sortOrder ?? -205058918580224,
+          startDate: task.startDate ?? null,
+          status: task.status !== undefined ? task.status : Status.TODO, // Fix for numbers
+          tags: task.tags ?? [],
+          timeZone: task.timeZone ?? 'Europe/Amsterdam'
+        })
+    );
     const body = {
       add: modifiedTasks,
       addAttachments: [],
@@ -116,9 +138,9 @@ export class TickTickClient {
       deleteAttachments: [],
       update: [],
       updateAttachments: []
-    }
-    const result = await axios.post(url, body);
+    };
 
-    return <any>result.data;
+    const result = await axios.post(url, body);
+    return result.data;
   }
 }

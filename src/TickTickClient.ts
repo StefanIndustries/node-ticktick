@@ -14,10 +14,10 @@ export class TickTickClient {
   private readonly xDevice = JSON.stringify({
     "platform": "web",
     "os": "Windows 10",
-    "device": "Firefox 122.0",
+    "device": "Firefox 147.0",
     "name": "",
-    "version": 5070,
-    "id": "6235fe7bac5d867b31382f52",
+    "version": 8010,
+    "id": "6980721550301f0a1c194621",
     "channel": "website",
     "campaign": "",
     "websocket": ""
@@ -49,6 +49,18 @@ export class TickTickClient {
   }
 
   public async login(): Promise<TickTickLogin> {
+    await this._getTokens();
+    return this._login();
+  }
+
+  private async _getTokens(): Promise<void> {
+    const url = "https://ticktick.com/signin";
+    const result = await axios.get(url);
+    const cookie = result.headers["set-cookie"]?.join("; ") + ";";
+    axios.defaults.headers.common['Cookie'] = cookie;
+  }
+
+  private async _login(): Promise<TickTickLogin> {
     const url = "/user/signon?wc=true&remember=true";
 
     const options = {
@@ -92,8 +104,8 @@ export class TickTickClient {
     return <TickTickProject[]>result.data;
   }
 
-  public async getTasks(): Promise<TickTickTask[]> {
-    const url = "project/all/completedInAll/?from=2023-04-12 00:00:00&to=2023-04-12 22:00:00&limit=50";
+  public async getTasks(fromDate: string, toDate: string): Promise<TickTickTask[]> {
+    const url = `project/all/completedInAll/?from=${fromDate} 00:00:00&to=${toDate} 22:00:00&limit=50`;
     const result = await axios.get(url);
 
     return <TickTickTask[]>result.data;

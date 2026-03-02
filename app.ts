@@ -1,6 +1,5 @@
 import {TickTickClient} from "./src/TickTickClient";
 
-
 async function main() {
     const username = process.env.TICKTICK_USERNAME!;
     const password = process.env.TICKTICK_PASSWORD!;

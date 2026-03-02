@@ -6,9 +6,9 @@ on:
       - main
 
 permissions:
-  contents: write   # commit, tag, create release, upload assets
-  packages: write   # if you later publish to GH Packages (optional)
-  id-token: write   # optional (for provenance); safe to leave
+  contents: write
+  packages: write
+  id-token: write
 
 concurrency:
   group: auto-release-${{ github.ref }}
@@ -84,7 +84,4 @@ jobs:
           files: |
             dist/*.tgz
 
-      - name: Publish to npm
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
+      - run: npm publish

@@ -6,6 +6,7 @@ import { TickTickProject } from './models/TickTickProject';
 import { Status, TickTickTask } from './models/TickTickTask';
 import { TickTickLogin } from './models/TickTickUser';
 import { TickTickModelHelpers } from './TickTickModelHelpers';
+import { getNextOccurrence, getUnsupportedRecurrenceReason, shiftTickTickDateTime } from './TickTickRecurrence';
 
 axios.defaults.baseURL = 'https://ticktick.com/api/v2/';
 
@@ -36,15 +37,17 @@ export class TickTickClient {
     });
 
     axios.interceptors.response.use(undefined, async (error: AxiosError) => {
-      if(error.response?.status !== 401) {
+      const originalRequestConfig = error.config as (typeof error.config & { _ticktickRetried?: boolean }) | undefined;
+      // Retry once after logging in again; a second 401 means the credentials or the endpoint are not valid.
+      if (error.response?.status !== 401 || !originalRequestConfig || originalRequestConfig._ticktickRetried) {
         return Promise.reject(error);
       }
+      originalRequestConfig._ticktickRetried = true;
 
-      await this.login().catch(error => Promise.reject(error));
-      const originalRequestConfig = error.config;
-      delete originalRequestConfig!.headers!['Cookie'];
+      await this.login();
+      delete originalRequestConfig.headers['Cookie'];
 
-      return axios.request(originalRequestConfig!);
+      return axios.request(originalRequestConfig);
     });
   }
 
@@ -109,6 +112,130 @@ export class TickTickClient {
     const result = await axios.get(url);
 
     return <TickTickTask[]>result.data;
+  }
+
+  /**
+   * Returns all tasks that are not completed yet, across all projects (including the inbox).
+   */
+  public async getUncompletedTasks(): Promise<TickTickTask[]> {
+    const url = "batch/check/0";
+    const result = await axios.get(url);
+
+    return <TickTickTask[]>(result.data?.syncTaskBean?.update ?? []);
+  }
+
+  /**
+   * Returns a single uncompleted task by its id, or undefined when it can not be found
+   * (for example because it is already completed or deleted).
+   */
+  public async getUncompletedTask(taskId: string): Promise<TickTickTask | undefined> {
+    const tasks = await this.getUncompletedTasks();
+    return tasks.find(task => task.id.toString() === taskId);
+  }
+
+  public async updateTask(task: TickTickTask): Promise<any> {
+    return this.updateTasks([task]);
+  }
+
+  /**
+   * Updates existing tasks. Pass the full task objects as returned by TickTick,
+   * fields that are left out may be cleared by TickTick.
+   */
+  public async updateTasks(tasks: TickTickTask[]): Promise<any> {
+    const now = TickTickModelHelpers.ConvertDateToTickTickDateTime(new Date());
+    return this.batchTask({ update: tasks.map(task => ({ ...task, modifiedTime: now })) });
+  }
+
+  /**
+   * Returns whether completeTask supports this task. Recurring tasks with an unsupported repeat rule
+   * (for example custom TickTick rules, or repeating from the completion date) can not be completed.
+   */
+  public static canCompleteTask(task: TickTickTask): boolean {
+    return getUnsupportedRecurrenceReason(task) === null;
+  }
+
+  /**
+   * Marks a task as completed.
+   *
+   * For recurring tasks this does what the TickTick apps do: a completed copy of the current occurrence
+   * is added, and the series itself moves to its next occurrence. When the series has ended
+   * (UNTIL or COUNT reached) the task is simply completed. Throws for unsupported repeat rules.
+   */
+  public async completeTask(task: TickTickTask): Promise<any> {
+    const now = TickTickModelHelpers.ConvertDateToTickTickDateTime(new Date());
+    const next = task.repeatFlag ? getNextOccurrence(task) : null;
+
+    if (!next) {
+      return this.batchTask({
+        update: [{ ...task, status: Status.COMPLETED, completedTime: now, modifiedTime: now }],
+      });
+    }
+
+    const timeZone = task.timeZone || 'UTC';
+    const { attachments, focusSummaries, ...copyBase } = task as TickTickTask & { attachments?: unknown, focusSummaries?: unknown };
+    const completedOccurrence = {
+      ...copyBase,
+      id: ObjectID().toHexString(),
+      status: Status.COMPLETED,
+      completedTime: now,
+      modifiedTime: now,
+      repeatFlag: '',
+      repeatTaskId: task.id.toString(),
+      items: (task.items ?? []).map((item: any) => ({ ...item, id: ObjectID().toHexString() })),
+      reminders: (task.reminders ?? []).map(reminder => ({ ...reminder, id: ObjectID().toHexString() })),
+    };
+
+    const shiftItemDate = (value: string | null | undefined) =>
+      value ? shiftTickTickDateTime(value, next.shiftedDays, timeZone) : value;
+    const advancedSeries: TickTickTask = {
+      ...task,
+      status: Status.TODO,
+      completedTime: null,
+      modifiedTime: now,
+      startDate: next.startDate,
+      dueDate: next.dueDate,
+      repeatFlag: next.repeatFlag,
+      items: (task.items ?? []).map((item: any) => ({
+        ...item,
+        status: 0,
+        completedTime: null,
+        startDate: shiftItemDate(item.startDate),
+        dueDate: shiftItemDate(item.dueDate),
+      })) as [],
+      ...('progress' in task ? { progress: 0 } : {}),
+    };
+
+    return this.batchTask({ add: [completedOccurrence], update: [advancedSeries] });
+  }
+
+  /**
+   * Marks a task as completed by its id. Throws when the task can not be found among the uncompleted tasks.
+   */
+  public async completeTaskById(taskId: string): Promise<any> {
+    const task = await this.getUncompletedTask(taskId);
+    if (!task) {
+      throw new Error(`Uncompleted task with id ${taskId} not found.`);
+    }
+
+    return this.completeTask(task);
+  }
+
+  /** Posts to batch/task and throws when TickTick reports errors for any of the tasks. */
+  private async batchTask(changes: { add?: object[], update?: object[] }): Promise<any> {
+    const body = {
+      add: changes.add ?? [],
+      addAttachments: [],
+      delete: [],
+      deleteAttachments: [],
+      update: changes.update ?? [],
+      updateAttachments: []
+    };
+    const result = await axios.post("batch/task", body);
+    const errors = result.data?.id2error ?? {};
+    if (Object.keys(errors).length > 0) {
+      throw new Error(`TickTick rejected the change: ${JSON.stringify(errors)}`);
+    }
+    return result.data;
   }
 
   public async createTask(task: AddTask): Promise<any> {

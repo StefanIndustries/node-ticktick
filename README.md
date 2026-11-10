@@ -48,6 +48,35 @@ tt.getProjects();
 tt.createTask(task: TickTickTask);
 ```
 
+### Get uncompleted tasks (async)
+Returns all open tasks across all lists, including the inbox.
+```typescript
+tt.getUncompletedTasks();
+tt.getUncompletedTask(taskId: string); // undefined when not found
+```
+
+### Update Task (async)
+Pass the full task object as returned by TickTick.
+```typescript
+tt.updateTask(task: TickTickTask);
+tt.updateTasks(tasks: TickTickTask[]);
+```
+
+### Complete Task (async)
+```typescript
+tt.completeTask(task: TickTickTask);
+tt.completeTaskById(taskId: string);
+```
+Recurring tasks work like in the TickTick apps: a completed copy of the current occurrence is added
+and the task moves to its next occurrence (keeping its time of day, also across DST changes).
+When the series has ended (`UNTIL` or `COUNT` reached) the task is simply completed.
+
+Some repeat rules are not supported and throw an error: custom TickTick rules that are not an
+`RRULE` and tasks repeating from the completion date. Check up front with:
+```typescript
+TickTickClient.canCompleteTask(task); // false for unsupported recurring tasks
+```
+
 ## Objects
 ### TickTickProfile
 ```typescript

@@ -4,9 +4,6 @@ async function main() {
     const username = process.env.TICKTICK_USERNAME!;
     const password = process.env.TICKTICK_PASSWORD!;
 
-    console.log('username', username);
-    console.log('password', password);
-
     const ticktickClient = new TickTickClient(username, password);
     const loginResult = await ticktickClient.login();
 

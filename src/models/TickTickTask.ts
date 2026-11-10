@@ -6,6 +6,7 @@ export interface TickTickTask {
     title: string, // "test notification"
     assignee: any,
     content: string,
+    completedTime?: string | null, // datetime "2022-03-25T08:45:40.000+0000", set when status is COMPLETED
     createdTime: string, // datetime "2022-03-25T08:45:40.000+0000" note: missing : at the end from normal ISO 8601
     dueDate: string | null, // datetime "2022-03-25T08:45:40.000+0000" note: missing : at the end from normal ISO 8601
     exDate: any[],
@@ -24,7 +25,8 @@ export interface TickTickTask {
     startDate: string | null, // datetime "2022-03-25T08:45:40.000+0000" note: missing : at the end from normal ISO 8601
     status: Status, // 0 is TODO
     tags: [],
-    timeZone: string // "Europe/Amsterdam"
+    timeZone: string, // "Europe/Amsterdam"
+    etag?: string
 }
 
 export enum Status {
